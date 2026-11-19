@@ -25,8 +25,14 @@ else
   echo "==> WordPress déjà installé"
 fi
 
+echo "==> Mise à jour de WordPress (WooCommerce exige une version récente)"
+wp core update
+wp core update-db || true
+echo "    WordPress $(wp core version)"
+
 echo "==> Langue française"
 wp language core install fr_FR --activate || true
+wp language core update || true
 
 echo "==> Permaliens propres (nécessaires à l'API)"
 wp rewrite structure '/%postname%/' --hard || true
