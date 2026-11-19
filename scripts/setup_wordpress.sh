@@ -80,23 +80,41 @@ if ! wp post list --post_type=page --name=liste-scolaire --field=ID | grep -q .;
 fi
 
 echo "==> Mot de passe d'application pour les agents"
-if [ -z "${WOO_APP_PASSWORD:-}" ]; then
-  APP_PW=$(wp user application-password create "$WP_ADMIN_USER" dealz-agents --porcelain)
+valide() { [[ "${1:-}" =~ ^[A-Za-z0-9]{24}$ ]]; }
+if valide "${WOO_APP_PASSWORD:-}"; then
+  echo "    Déjà présent dans .env"
+else
+  # on repart d'un mot de passe propre (un ancien, mal enregistré, ne servirait à rien)
+  wp user application-password delete "$WP_ADMIN_USER" --all >/dev/null 2>&1 || true
+  # on ne garde que les 24 caractères du mot de passe, quels que soient les messages affichés autour
+  APP_PW=$(wp user application-password create "$WP_ADMIN_USER" dealz-agents --porcelain 2>/dev/null | grep -Eo '[A-Za-z0-9]{24}' | tail -1 || true)
+  valide "$APP_PW" || { echo "ERREUR : le mot de passe d'application n'a pas pu être créé."; exit 1; }
   if grep -q '^WOO_APP_PASSWORD=' .env; then
     sed -i "s|^WOO_APP_PASSWORD=.*|WOO_APP_PASSWORD=${APP_PW}|" .env
   else
     echo "WOO_APP_PASSWORD=${APP_PW}" >> .env
   fi
-  echo "    Enregistré dans .env"
-else
-  echo "    Déjà présent dans .env"
+  echo "    Enregistré dans .env (24 caractères)"
 fi
 
 echo "==> Redémarrage du service d'agents avec les nouveaux accès"
 docker compose up -d --build --force-recreate agents
 
+echo "==> Test de l'accès des agents à WooCommerce"
+ok=""
+for i in $(seq 1 20); do
+  code=$(docker compose exec -T agents python -c "import httpx,os;print(httpx.get('http://wordpress/wp-json/wc/v3/products',params={'per_page':1},auth=(os.environ['WOO_USER'],os.environ['WOO_APP_PASSWORD'])).status_code)" 2>/dev/null | tr -d '\r' || true)
+  [ "$code" = "200" ] && { ok=1; echo "    Accès OK"; break; }
+  sleep 3
+done
+if [ -z "$ok" ]; then
+  echo "ERREUR : les agents n'arrivent pas à se connecter à WooCommerce (dernier code HTTP : ${code:-aucun})."
+  echo "  - 401 : vide WOO_APP_PASSWORD dans .env puis relance ce script (il en recréera un)"
+  echo "  - aucun code : docker compose logs agents"
+  exit 1
+fi
+
 echo "==> Import du catalogue (zone de livraison, catégories, produits, packs)"
-sleep 5
 docker compose exec -T agents python -m dealz.tools.import_catalog
 
 echo
