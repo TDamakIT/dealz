@@ -79,7 +79,10 @@ Sur Telegram :
 | `/budget` | ce que l'IA a coûté ce mois-ci |
 
 Puis :
-- tableau de bord des agents : `http://localhost:8000`
+- tableau de bord des agents : `http://localhost:8000`, avec les onglets :
+  - **Commandes** (`/commandes`) : suivi par étape (à confirmer, confirmée, livrée, annulée), score de risque, marge, bouton WhatsApp et boutons Confirmée / Livrée / Annulée qui mettent à jour WooCommerce (le jeton `AGENTS_API_TOKEN` est demandé au premier clic) ; en rouge si non confirmée après 24 h
+  - **Comparer les prix** (`/prix`) : nos PC face à la médiane Tunisianet, et une recherche d'un produit chez nous et dans les relevés concurrents
+  - **Marges** (`/marges`) : marge par catégorie et par produit, produits sous le seuil, valeur du stock, marge réalisée sur 30 jours (catalogue local si la boutique n'est pas connectée)
 - liste scolaire : `http://localhost:8080/liste-scolaire/` : un bloc par enfant (fille ou garçon), texte ou photo de la liste (photo si la clé Claude est branchée), sur chaque ligne un filtre de gamme (petit prix / moyenne / haut de gamme) et le choix du modèle exact, une seule commande avec « Pour : prénom » sur chaque article
 - catalogue de démo : 718 références fictives. Règle « qui choisit ? » : quand c'est l'enfant (cartable, trousse, gourde, agenda…), au moins 5 modèles par genre et par gamme ; quand ce sont les parents (stylos, cahiers, règles…), 2 modèles par gamme. Champ `choix` = enfant | parent. Pour régénérer : `python3 data/gen_variantes.py`
 

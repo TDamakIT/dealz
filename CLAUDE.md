@@ -38,5 +38,5 @@ Fournisseurs : Office House (grossiste fournitures scolaires) et Dartech (inform
 ## Docs utiles
 `docs/PLAN-DEV.md` (feuille de route), `docs/AGENTS.md` et `docs/AGENTS-INSTRUCTIONS.md` (agents), `docs/SCENARIOS.md` (tests à la main), `docs/QUESTIONS.md` (questions ouvertes).
 
-## Prochaine tâche identifiée
-Section « Commandes à confirmer » sur le tableau de bord (`agents/dealz/web.py`) : client, gouvernorat, montant, score de risque (`agents/commandes.py`), bouton WhatsApp (`wa_link`), boutons Confirmée / Annulée qui mettent à jour la commande WooCommerce, en rouge si non confirmée après 24 h.
+## Tableau de bord
+`agents/dealz/web.py` (pages) + `agents/dealz/suivi.py` (données) : Vue d'ensemble, Commandes (`/commandes`, actions `POST /api/commandes/{id}/confirmee|livree|annulee` avec en-tête `X-Dealz-Token`), Comparer les prix (`/prix`), Marges (`/marges`). Tests : `agents/tests/test_suivi.py`.
