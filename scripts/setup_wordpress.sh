@@ -8,6 +8,9 @@ cd "$(dirname "$0")/.."
 set -a; . ./.env; set +a
 
 wp() { docker compose run --rm -T wpcli wp "$@"; }
+# Réglage tolérant : WP-CLI renvoie une erreur si la valeur est déjà la bonne
+# ou si WooCommerce gère l'option lui-même ; ça ne doit pas arrêter l'installation.
+opt() { wp option update "$@" >/dev/null 2>&1 && echo "    $1 ok" || echo "    $1 : inchangé (déjà réglé ou géré par WooCommerce)"; }
 
 echo "==> Attente de WordPress…"
 for i in $(seq 1 60); do
@@ -45,24 +48,30 @@ wp plugin activate dealz-liste
 wp plugin install seo-by-rank-math --activate   # champs SEO (titre, méta-description) et plan du site utilisés par l'agent SEO
 
 echo "==> Réglages boutique (Tunisie, dinar, 3 décimales)"
-wp option update woocommerce_default_country "TN"
-wp option update woocommerce_store_city "Sfax"
-wp option update woocommerce_currency "TND"
-wp option update woocommerce_currency_pos "right_space"
-wp option update woocommerce_price_num_decimals 3
-wp option update woocommerce_price_decimal_sep ","
-wp option update woocommerce_price_thousand_sep " "
-wp option update woocommerce_calc_taxes "no"
-wp option update woocommerce_allowed_countries "specific"
-wp option update woocommerce_specific_allowed_countries '["TN"]' --format=json
-wp option update woocommerce_ship_to_countries ""
-wp option update woocommerce_enable_guest_checkout "yes"
-wp option update woocommerce_task_list_hidden "yes"
-wp option update woocommerce_onboarding_profile '{"skipped":true}' --format=json
-wp option update woocommerce_coming_soon "no" || true
+opt woocommerce_default_country "TN"
+opt woocommerce_store_city "Sfax"
+opt woocommerce_currency "TND"
+opt woocommerce_currency_pos "right_space"
+opt woocommerce_price_num_decimals 3
+opt woocommerce_price_decimal_sep ","
+opt woocommerce_price_thousand_sep " "
+opt woocommerce_calc_taxes "no"
+opt woocommerce_allowed_countries "specific"
+opt woocommerce_specific_allowed_countries '["TN"]' --format=json
+opt woocommerce_ship_to_countries ""
+opt woocommerce_enable_guest_checkout "yes"
+opt woocommerce_task_list_hidden "yes"
+opt woocommerce_onboarding_profile '{"skipped":true}' --format=json
+opt woocommerce_coming_soon "no"
 
 echo "==> Paiement à la livraison"
-wp option update woocommerce_cod_settings '{"enabled":"yes","title":"Paiement à la livraison","description":"Vous payez en espèces au livreur. Nous vous confirmons la commande sur WhatsApp avant l envoi.","instructions":"Nous vous contactons sur WhatsApp pour confirmer la commande.","enable_for_methods":[],"enable_for_virtual":"yes"}' --format=json
+opt woocommerce_cod_settings '{"enabled":"yes","title":"Paiement à la livraison","description":"Vous payez en espèces au livreur. Nous vous confirmons la commande sur WhatsApp avant l envoi.","instructions":"Nous vous contactons sur WhatsApp pour confirmer la commande.","enable_for_methods":[],"enable_for_virtual":"yes"}' --format=json
+
+echo "==> Vérification des réglages essentiels"
+for kv in woocommerce_default_country=TN woocommerce_currency=TND woocommerce_price_num_decimals=3; do
+  k=${kv%%=*}; v=${kv#*=}; got=$(wp option get "$k" 2>/dev/null | tr -d '\r')
+  [ "$got" = "$v" ] && echo "    $k = $got" || { echo "ERREUR : $k vaut '$got' au lieu de '$v'"; exit 1; }
+done
 
 echo "==> Page « Ma liste scolaire »"
 if ! wp post list --post_type=page --name=liste-scolaire --field=ID | grep -q .; then
