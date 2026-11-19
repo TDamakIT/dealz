@@ -117,6 +117,9 @@ fi
 echo "==> Import du catalogue (zone de livraison, catégories, produits, packs)"
 docker compose exec -T agents python -m dealz.tools.import_catalog
 
+echo "==> Thème Dealz, pages et menu"
+. ./scripts/setup_theme.sh
+
 echo
 echo "Terminé."
 echo "  Boutique       : $WP_PUBLIC_URL"

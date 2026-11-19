@@ -41,6 +41,21 @@ class Woo:
     def put(self, path, data):
         return self._req("PUT", path, json=data).json()
 
+    def upload_media(self, path, filename, mime="image/png"):
+        """Envoie une image dans la médiathèque WordPress (API wp/v2). Renvoie l'élément créé."""
+        root = self.base.rsplit("/wc/v3", 1)[0]
+        with open(path, "rb") as f:
+            r = self.http.post(f"{root}/wp/v2/media", content=f.read(),
+                               headers={"Content-Disposition": f'attachment; filename="{filename}"', "Content-Type": mime})
+        if r.status_code >= 400:
+            raise RuntimeError(f"WordPress POST media → {r.status_code} : {r.text[:300]}")
+        return r.json()
+
+    def find_media(self, search):
+        root = self.base.rsplit("/wc/v3", 1)[0]
+        r = self.http.get(f"{root}/wp/v2/media", params={"search": search, "per_page": 20})
+        return r.json() if r.status_code == 200 else []
+
     def delete(self, path, force=True):
         return self._req("DELETE", path, params={"force": str(force).lower()}).json()
 

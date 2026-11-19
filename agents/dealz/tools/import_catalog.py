@@ -5,8 +5,11 @@
 Crée : la zone de livraison Tunisie (7 DT, offerte dès 150 DT), les rayons et catégories,
 les produits (les produits « bientôt » restent en brouillon) et les packs / coffrets.
 """
+import html
 import json
+import os
 import sys
+from pathlib import Path
 
 from ..catalog import load_catalog
 from ..woo import Woo
@@ -33,14 +36,21 @@ def ensure_shipping(woo: Woo):
 
 
 def ensure_categories(woo: Woo, cat: dict) -> dict:
-    existing = {c["name"]: c["id"] for c in woo.get_all("products/categories", hide_empty=False)}
+    # WooCommerce renvoie « Papeterie &amp; scolaire » : on compare les noms décodés
+    existing = {html.unescape(c["name"]): c["id"] for c in woo.get_all("products/categories", hide_empty=False)}
 
     def get_or_create(name, parent=0):
         if name in existing:
             return existing[name]
-        c = woo.post("products/categories", {"name": name, "parent": parent})
-        existing[name] = c["id"]
-        return c["id"]
+        try:
+            c = woo.post("products/categories", {"name": name, "parent": parent})
+            existing[name] = c["id"]
+        except RuntimeError as e:   # déjà là sous un autre libellé : WooCommerce donne son identifiant
+            m = __import__("re").search(r'"resource_id":(\d+)', str(e))
+            if not m:
+                raise
+            existing[name] = int(m.group(1))
+        return existing[name]
 
     ids = {}
     rub_ids = {r["id"]: get_or_create(r["nom"]) for r in cat["rubriques"]}
@@ -52,7 +62,40 @@ def ensure_categories(woo: Woo, cat: dict) -> dict:
     return ids
 
 
-def product_payload(p, cat_ids):
+PHOTOS_DIR = Path(os.getenv("PHOTOS_DIR", "/app/data/photos-demo"))
+
+
+def ensure_photos(woo: Woo) -> dict:
+    """Envoie une fois les photos de démo dans la médiathèque. Renvoie {nom: id_media}."""
+    ids = {}
+    if not PHOTOS_DIR.exists():
+        print("Photos de démo : dossier absent, produits sans photo")
+        return ids
+    for f in sorted(PHOTOS_DIR.glob("*.png")):
+        nom = f"dealz-demo-{f.stem}"
+        found = [m for m in woo.find_media(nom) if m.get("slug", "").startswith(nom)]
+        ids[f.stem] = found[0]["id"] if found else woo.upload_media(f, f"{nom}.png")["id"]
+    print(f"Photos de démo : {len(ids)}")
+    return ids
+
+
+def photo_for(p):
+    """Photo de démo selon le type d'article (seulement pour les familles qu'on a photographiées)."""
+    n, g, gm = p["nom"].lower(), p.get("genre", "mixte"), p.get("gamme", "standard")
+    if "cartable" in n or "sac à dos" in n:
+        if g in ("fille", "garcon"):
+            return f"cartable-{g}"
+        return {"eco": "cartable-eco", "premium": "cartable-premium"}.get(gm, "cartable-mixte")
+    if "trousse" in n or "plumier" in n:
+        return "trousse-fille" if g == "fille" else "trousse-garcon"
+    if "stylo" in n:
+        return f"stylo-{gm}"
+    if "cahier" in n and "textes" not in n and "protège" not in n:
+        return f"cahier-{gm}"
+    return None
+
+
+def product_payload(p, cat_ids, photos=None):
     meta = [{"key": "_cout_achat", "value": f"{p['prix_achat']:.3f}"},
             {"key": "_fournisseur", "value": p["fournisseur"]},
             {"key": "_nom_ar", "value": p["nom_ar"]},
@@ -62,10 +105,16 @@ def product_payload(p, cat_ids):
             {"key": "_choix", "value": p.get("choix", "parent")}]
     if p["nom"] in VEILLE_GAMME:
         meta.append({"key": "_veille_gamme", "value": VEILLE_GAMME[p["nom"]]})
-    return {"name": p["nom"], "type": "simple", "sku": p["id"], "regular_price": f"{p['prix_vente']:.3f}",
-            "manage_stock": True, "stock_quantity": p["stock"], "status": "draft" if p["bientot"] else "publish",
-            "short_description": f"<p dir='rtl'>{p['nom_ar']}</p><p><em>Produit et prix fictifs (démo).</em></p>",
-            "categories": [{"id": cat_ids[p["categorie"]]}], "meta_data": meta}
+    payload = {"name": p["nom"], "type": "simple", "sku": p["id"], "regular_price": f"{p['prix_vente']:.3f}",
+               "manage_stock": True, "stock_quantity": p["stock"], "status": "draft" if p["bientot"] else "publish",
+               # les modèles d'une famille n'encombrent pas la boutique : ils sont sur la fiche du produit principal
+               "catalog_visibility": "visible" if p.get("famille", p["id"]) == p["id"] else "hidden",
+               "short_description": f"<p dir='rtl'>{p['nom_ar']}</p><p><em>Produit et prix fictifs (démo).</em></p>",
+               "categories": [{"id": cat_ids[p["categorie"]]}], "meta_data": meta}
+    key = photo_for(p)
+    if photos and key in photos:
+        payload["images"] = [{"id": photos[key]}]
+    return payload
 
 
 def pack_payload(pk, cat, cat_ids):
@@ -86,8 +135,9 @@ def main():
     cat = load_catalog()
     ensure_shipping(woo)
     cat_ids = ensure_categories(woo, cat)
+    photos = ensure_photos(woo)
     existing = {p["sku"]: p["id"] for p in woo.products(status="any") if p.get("sku")}
-    payloads = [product_payload(p, cat_ids) for p in cat["produits"]] + [pack_payload(pk, cat, cat_ids) for pk in cat["packs"]]
+    payloads = [product_payload(p, cat_ids, photos) for p in cat["produits"]] + [pack_payload(pk, cat, cat_ids) for pk in cat["packs"]]
     create = [x for x in payloads if x["sku"] not in existing]
     update = [{**x, "id": existing[x["sku"]]} for x in payloads if x["sku"] in existing]
     errors = []

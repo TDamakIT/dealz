@@ -129,3 +129,27 @@ def test_import_payloads():
     laptop = next(p for p in cat["produits"] if p["nom"].startswith("Ordinateur portable 15,6"))
     assert any(m["key"] == "_veille_gamme" for m in product_payload(laptop, ids)["meta_data"])
     assert pack_payload(cat["packs"][0], cat, ids)["sku"].startswith("PK-")
+
+
+def test_import_categories_survive_html_entities():
+    from dealz.tools.import_catalog import ensure_categories
+
+    class W:
+        def __init__(self):
+            self.cats = [{"id": 16, "name": "Papeterie &amp; scolaire"}]
+            self.posted = []
+
+        def get_all(self, path, **kw):
+            return self.cats
+
+        def post(self, path, data):
+            if data["name"] == "Papeterie & scolaire":
+                raise RuntimeError('400 : {"code":"term_exists","data":{"status":400,"resource_id":16}}')
+            self.posted.append(data["name"])
+            return {"id": 100 + len(self.posted)}
+
+    w = W()
+    cat = {"rubriques": [{"id": "papeterie", "nom": "Papeterie & scolaire"}],
+           "produits": [{"rubrique": "papeterie", "categorie": "Cahiers"}]}
+    ids = ensure_categories(w, cat)
+    assert "Papeterie & scolaire" not in w.posted and ids["Cahiers"] > 100
