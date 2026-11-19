@@ -64,84 +64,112 @@
 
   function selected(l) { return l.options.find((o) => o.product_id === l.product_id); }
 
+  const GLIB = { eco: 'Petit prix', standard: 'Moyenne gamme', premium: 'Haut de gamme' };
+
+  function ligneCarte(l, ei, li) {
+    const row = el('div', { class: 'dz-ligne' + (l.keep === false ? ' off' : '') });
+    const cur = l.product_id ? selected(l) : null;
+    const cb = el('input', { type: 'checkbox', 'data-act': 'keep', 'data-e': ei, 'data-l': li, 'aria-label': 'Garder cet article' });
+    cb.checked = l.keep !== false;
+    if (!cur) cb.disabled = true;
+    row.append(el('label', { class: 'dz-garder' }), el('img', { class: 'dz-thumb', alt: '', src: cur ? cur.image : '' }));
+    row.firstChild.append(cb);
+    const info = el('div', { class: 'dz-info' });
+    if (cur) {
+      info.append(el('div', { class: 'dz-titre' }, cur.base));
+      const m = el('div', { class: 'dz-modele' }, cur.court);
+      m.append(el('span', { class: 'dz-tag ' + cur.gamme }, GLIB[cur.gamme] || cur.gamme));
+      info.append(m);
+    } else {
+      info.append(el('div', { class: 'dz-titre' }, l.ligne));
+    }
+    info.append(el('div', { class: 'dz-source' }, `Sur la liste : « ${l.ligne} »${l.note ? ' · ' + l.note : ''}`));
+    let act = null;
+    if (cur && l.options.length > 1) {
+      act = el('div', { class: 'dz-actions' });
+      const dispo = GAMMES.filter(([g]) => l.options.some((o) => o.gamme === g));
+      if (dispo.length > 1) dispo.forEach(([g, t]) => act.append(el('button', { type: 'button', 'data-act': 'gamme', 'data-g': g, 'data-e': ei, 'data-l': li, 'aria-pressed': String(l.open && l.filtre === g) }, t)));
+      const n = l.options.length;
+      act.append(el('button', { type: 'button', class: 'dz-voir', 'data-act': 'voir', 'data-e': ei, 'data-l': li, 'aria-expanded': String(!!l.open) },
+        l.open ? 'Fermer' : `Voir les ${n} modèles`));
+    }
+    row.append(info);
+    if (cur) {
+      const q = el('div', { class: 'dz-qte' });
+      q.append(el('button', { type: 'button', 'data-act': 'moins', 'data-e': ei, 'data-l': li, 'aria-label': 'Moins' }, '−'),
+        el('input', { type: 'number', min: '1', max: '50', value: String(l.qte), 'data-act': 'qte', 'data-e': ei, 'data-l': li, 'aria-label': 'Quantité' }),
+        el('button', { type: 'button', 'data-act': 'plus', 'data-e': ei, 'data-l': li, 'aria-label': 'Plus' }, '+'));
+      row.append(q, el('div', { class: 'dz-prix' }, fmt(cur.prix * l.qte)));
+      if (act) row.append(act);
+      if (l.open) {
+        const strip = el('div', { class: 'dz-modeles', role: 'listbox', 'aria-label': 'Modèles' });
+        l.options.filter((o) => !l.filtre || o.gamme === l.filtre).forEach((o) => {
+          const c = el('button', { type: 'button', class: 'dz-carte', 'data-act': 'pick', 'data-p': String(o.product_id), 'data-e': ei, 'data-l': li, 'aria-pressed': String(o.product_id === l.product_id) });
+          c.append(el('img', { src: o.image, alt: '' }), el('span', {}, o.court), el('b', {}, fmt(o.prix)));
+          strip.append(c);
+        });
+        row.append(strip);
+      }
+    } else {
+      row.append(el('div', { class: 'dz-manque' }, 'Pas trouvé dans le catalogue : l’équipe vous propose une solution.'));
+    }
+    return row;
+  }
+
   function render() {
     out.replaceChildren();
     let total = 0;
     enfants.forEach((enf, ei) => {
       const sec = el('div', { class: 'dz-enfant-res' });
-      const ok = enf.lignes.filter((l) => l.product_id);
+      const ok = enf.lignes.filter((l) => l.product_id && l.keep !== false);
       const sous = ok.reduce((a, l) => a + selected(l).prix * l.qte, 0);
       total += sous;
-      sec.append(el('h3', {}, `${enf.label} — ${LIB[enf.genre]} : ${fmt(sous)}`));
-      sec.append(el('p', {}, `${ok.length} article(s), ${enf.lignes.length - ok.length} à vérifier par l'équipe. Sur chaque ligne : filtrez la gamme si vous voulez, puis choisissez le modèle.`));
-      const table = el('table', { class: 'shop_table' });
-      enf.lignes.forEach((l, li) => {
-        const tr = el('tr');
-        const td0 = el('td');
-        if (l.product_id) {
-          const cb = el('input', { type: 'checkbox', 'data-e': ei, 'data-l': li, 'aria-label': 'Garder cet article' });
-          cb.checked = l.keep !== false;
-          td0.append(cb);
-        }
-        const td1 = el('td');
-        td1.append(el('small', {}, `Liste : « ${l.ligne} »${l.note ? ' · ' + l.note : ''}`), el('br'));
-        if (l.options.length) {
-          const dispo = GAMMES.filter(([g]) => l.options.some((o) => o.gamme === g));
-          if (dispo.length > 1) {
-            const gw = el('div', { class: 'dz-gammes', role: 'group', 'aria-label': 'Gamme' });
-            [[null, 'Tout'], ...dispo].forEach(([g, t]) => {
-              const b = el('button', { type: 'button', 'data-e': ei, 'data-l': li, 'data-g': g || '', 'aria-pressed': String((l.filtre || null) === g) }, t);
-              gw.append(b);
-            });
-            td1.append(gw);
-          }
-          const visibles = l.options.filter((o) => !l.filtre || o.gamme === l.filtre);
-          const sel = el('select', { 'data-e': ei, 'data-l': li, 'aria-label': 'Modèle' });
-          const genre = l.options.some((o) => o.genre !== 'mixte');   // « mixte » n'a de sens que si la ligne a des modèles fille/garçon
-          visibles.forEach((o) => {
-            const opt = el('option', { value: String(o.product_id) }, `${o.nom}${genre && o.genre === 'mixte' ? ' · mixte' : ''} — ${fmt(o.prix)}`);
-            if (o.product_id === l.product_id) opt.selected = true;
-            sel.append(opt);
-          });
-          td1.append(sel);
-        } else {
-          td1.append(el('strong', {}, 'Non trouvé : l’équipe vous rappelle'));
-        }
-        const td2 = el('td');
-        if (l.product_id) td2.append(el('input', { type: 'number', min: '1', max: '50', value: String(l.qte), 'data-e': ei, 'data-q': li, style: 'width:4em', 'aria-label': 'Quantité' }));
-        tr.append(td0, td1, td2, el('td', {}, l.product_id ? fmt(selected(l).prix * l.qte) : ''));
-        table.append(tr);
-      });
-      sec.append(table);
+      sec.append(el('h3', {}, `${enf.label} · ${LIB[enf.genre]} · ${fmt(sous)}`));
+      const manque = enf.lignes.filter((l) => !l.product_id).length;
+      sec.append(el('p', { class: 'dz-source' }, `${ok.length} article(s) dans le panier${manque ? `, ${manque} à vérifier par l'équipe` : ''}. Le modèle proposé est en moyenne gamme : change la gamme ou le modèle sur chaque ligne.`));
+      enf.lignes.forEach((l, li) => sec.append(ligneCarte(l, ei, li)));
       out.append(sec);
     });
     if (enfants.length) {
-      const tp = el('p');
-      out.append(tp);
-      tp.append(el('strong', {}, `Total ${enfants.length > 1 ? 'pour les ' + enfants.length + ' enfants' : ''} : ${fmt(total)}`));
+      const tp = el('div', { class: 'dz-total' });
+      tp.append(el('strong', {}, `Total${enfants.length > 1 ? ' pour les ' + enfants.length + ' enfants' : ''} : ${fmt(total)}`));
       const b = el('button', { type: 'button', class: 'button alt' }, 'Tout ajouter au panier (une seule commande)');
       b.addEventListener('click', addToCart);
-      out.append(b);
+      tp.append(b);
+      out.append(tp);
     }
   }
 
   out.addEventListener('click', (e) => {
-    const b = e.target.closest('.dz-gammes button');
-    if (!b) return;
-    const l = enfants[+b.getAttribute('data-e')].lignes[+b.getAttribute('data-l')];
-    l.filtre = b.getAttribute('data-g') || null;
-    const first = l.options.find((o) => !l.filtre || o.gamme === l.filtre);
-    if (first) l.product_id = first.product_id;
+    const t = e.target.closest('[data-act]');
+    if (!t || t.tagName === 'INPUT') return;
+    const l = enfants[+t.getAttribute('data-e')].lignes[+t.getAttribute('data-l')];
+    const act = t.getAttribute('data-act');
+    if (act === 'gamme') {
+      const g = t.getAttribute('data-g');
+      if (l.open && l.filtre === g) { l.open = false; } else {
+        l.open = true; l.filtre = g;
+        if (selected(l).gamme !== g) { const first = l.options.find((o) => o.gamme === g); if (first) l.product_id = first.product_id; }
+      }
+    } else if (act === 'voir') {
+      l.open = !l.open; l.filtre = l.open ? null : l.filtre;
+    } else if (act === 'pick') {
+      l.product_id = parseInt(t.getAttribute('data-p'), 10);
+    } else if (act === 'moins') {
+      l.qte = Math.max(1, l.qte - 1);
+    } else if (act === 'plus') {
+      l.qte = Math.min(50, l.qte + 1);
+    } else return;
     render();
   });
 
   out.addEventListener('change', (e) => {
-    const t = e.target, ei = t.getAttribute('data-e');
-    if (ei === null) return;
-    const enf = enfants[+ei];
-    if (t.tagName === 'SELECT') enf.lignes[+t.getAttribute('data-l')].product_id = parseInt(t.value, 10);
-    else if (t.hasAttribute('data-q')) enf.lignes[+t.getAttribute('data-q')].qte = Math.max(1, parseInt(t.value, 10) || 1);
-    else if (t.type === 'checkbox') { enf.lignes[+t.getAttribute('data-l')].keep = t.checked; return; }
+    const t = e.target, act = t.getAttribute('data-act');
+    if (!act) return;
+    const l = enfants[+t.getAttribute('data-e')].lignes[+t.getAttribute('data-l')];
+    if (act === 'qte') l.qte = Math.min(50, Math.max(1, parseInt(t.value, 10) || 1));
+    else if (act === 'keep') l.keep = t.checked;
+    else return;
     render();
   });
 
@@ -168,7 +196,7 @@
         const j = await r.json();
         if (!j.success) throw new Error((j.data && j.data.message) || 'Erreur');
         // avec 5 modèles ou plus par gamme, on ouvre chaque ligne sur la gamme du modèle proposé (moyenne gamme)
-        j.data.lignes.forEach((l) => { if (l.options && l.options.length > 6) l.filtre = l.options[0].gamme; });
+        j.data.lignes.forEach((l) => { l.open = false; l.filtre = null; });
         enfants.push({ label, genre, lignes: j.data.lignes });
       }
       statut.textContent = enfants.length > 1 ? `${enfants.length} listes lues.` : 'Liste lue.';

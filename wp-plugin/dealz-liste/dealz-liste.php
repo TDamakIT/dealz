@@ -2,14 +2,14 @@
 /**
  * Plugin Name: Dealz – Liste scolaire
  * Description: Shortcode [dealz_liste] : le parent envoie la photo ou le texte de la liste, l'agent prépare le panier.
- * Version: 0.3.0
+ * Version: 0.4.0
  * Author: Dealz
  * Requires Plugins: woocommerce
  */
 if (!defined('ABSPATH')) exit;
 
 add_shortcode('dealz_liste', function () {
-    wp_enqueue_script('dealz-liste', plugins_url('dealz-liste.js', __FILE__), [], '0.3.0', true);
+    wp_enqueue_script('dealz-liste', plugins_url('dealz-liste.js', __FILE__), [], '0.4.0', true);
     wp_localize_script('dealz-liste', 'DEALZ_LISTE', [
         'ajax'  => admin_url('admin-ajax.php'),
         'nonce' => wp_create_nonce('dealz_liste'),
@@ -31,10 +31,38 @@ add_shortcode('dealz_liste', function () {
       #dealz-liste .dz-choix label{border:1px solid #ccc;border-radius:99px;padding:5px 12px;cursor:pointer}
       #dealz-liste .dz-choix input{margin-right:5px}
       #dealz-liste .dz-enfant-res{margin:18px 0}
-      #dealz-liste select{max-width:100%}
-      #dealz-liste .dz-gammes{display:flex;gap:6px;flex-wrap:wrap;margin:6px 0}
-      #dealz-liste .dz-gammes button{border:1px solid #bbb;background:#fff;border-radius:99px;padding:3px 10px;font-size:.85em;cursor:pointer}
-      #dealz-liste .dz-gammes button[aria-pressed=true]{background:#132a66;color:#fff;border-color:#132a66}
+      #dealz-liste .dz-ligne{display:grid;grid-template-columns:28px 76px 1fr auto auto;gap:6px 14px;align-items:center;padding:14px 0;border-bottom:1px solid #eee}
+      #dealz-liste .dz-ligne.off{opacity:.45}
+      #dealz-liste .dz-thumb{width:76px;height:76px;object-fit:cover;border-radius:12px;background:#f6f1e4}
+      #dealz-liste .dz-titre{font-weight:700;line-height:1.25}
+      #dealz-liste .dz-modele{font-size:.92em;color:#333;margin-top:2px}
+      #dealz-liste .dz-tag{display:inline-block;font-size:.75em;border-radius:99px;padding:1px 8px;background:#eef1f8;color:#132a66;margin-left:4px}
+      #dealz-liste .dz-tag.eco{background:#e7f6ec;color:#16653f}#dealz-liste .dz-tag.premium{background:#2a2140;color:#ffd979}
+      #dealz-liste .dz-source{font-size:.78em;color:#6b7280;margin-top:3px}
+      #dealz-liste .dz-actions{grid-column:2 / -1;display:flex;flex-wrap:wrap;gap:6px}
+      #dealz-liste .dz-actions button{background:#fff;color:#132a66;border:1px solid #cfd5e3;border-radius:99px;padding:4px 12px;font-size:.82em;font-weight:500;cursor:pointer;line-height:1.4}
+      #dealz-liste .dz-actions button[aria-pressed=true]{background:#132a66;color:#fff;border-color:#132a66}
+      #dealz-liste .dz-actions .dz-voir{border-style:dashed}
+      #dealz-liste .dz-qte{display:flex;align-items:center;border:1px solid #cfd5e3;border-radius:99px;overflow:hidden}
+      #dealz-liste .dz-qte button{background:#fff;color:#132a66;border:0;width:32px;height:34px;padding:0;font-size:1.1em;cursor:pointer;border-radius:0}
+      #dealz-liste .dz-qte input{width:38px;height:34px;border:0;text-align:center;padding:0;-moz-appearance:textfield;border-radius:0;background:#fff}
+      #dealz-liste .dz-qte input::-webkit-inner-spin-button{-webkit-appearance:none}
+      #dealz-liste .dz-prix{font-weight:700;white-space:nowrap;min-width:78px;text-align:right}
+      #dealz-liste .dz-modeles{grid-column:2 / -1;display:flex;gap:10px;overflow-x:auto;padding:6px 2px 10px;scroll-snap-type:x mandatory}
+      #dealz-liste .dz-carte{flex:0 0 132px;scroll-snap-align:start;background:#fff;border:2px solid #e6e2d6;border-radius:14px;padding:6px;text-align:left;cursor:pointer;color:#1b2238}
+      #dealz-liste .dz-carte img{width:100%;height:110px;object-fit:cover;border-radius:10px;background:#f6f1e4;display:block}
+      #dealz-liste .dz-carte span{display:block;font-size:.76em;line-height:1.25;margin-top:5px;min-height:2.5em}
+      #dealz-liste .dz-carte b{font-size:.85em}
+      #dealz-liste .dz-carte[aria-pressed=true]{border-color:#f2b10a;box-shadow:0 0 0 2px #f2b10a}
+      #dealz-liste .dz-manque{grid-column:2 / -1;color:#b42318;font-weight:500}
+      #dealz-liste .dz-total{display:flex;justify-content:space-between;align-items:center;gap:1em;flex-wrap:wrap;margin-top:16px;font-size:1.15em}
+      @media (max-width:640px){
+        #dealz-liste .dz-ligne{grid-template-columns:24px 64px 1fr;}
+        #dealz-liste .dz-thumb{width:64px;height:64px}
+        #dealz-liste .dz-qte{grid-column:2 / 3}
+        #dealz-liste .dz-prix{grid-column:3 / 4}
+        #dealz-liste .dz-actions button{font-size:.74em;padding:3px 9px}
+      }
     </style>
     <?php return ob_get_clean();
 });
@@ -73,7 +101,11 @@ function dealz_liste_lire() {
             $pid = wc_get_product_id_by_sku($o['sku'] ?? '');
             $p = $pid ? wc_get_product($pid) : null;
             if (!$p || !$p->is_purchasable() || !$p->is_in_stock()) continue;
-            $options[] = ['product_id' => $pid, 'nom' => $p->get_name(), 'prix' => (float)$p->get_price(),
+            $nom = $p->get_name();
+            $parts = explode(' — ', $nom, 2);
+            $img = $p->get_image_id() ? wp_get_attachment_image_url($p->get_image_id(), 'woocommerce_thumbnail') : '';
+            $options[] = ['product_id' => $pid, 'nom' => $nom, 'base' => $parts[0], 'court' => $parts[1] ?? 'Modèle classique',
+                          'prix' => (float)$p->get_price(), 'image' => $img ?: wc_placeholder_img_src('woocommerce_thumbnail'),
                           'gamme' => $o['gamme'] ?? 'standard', 'genre' => $o['genre'] ?? 'mixte'];
         }
         $lignes[] = [

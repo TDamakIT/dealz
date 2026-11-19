@@ -13,6 +13,7 @@ from .config import settings
 from .scraper import SOURCE
 
 app = FastAPI(title="Dealz agents")
+db.init()   # tables prêtes même si l'API est lancée seule (sans le planificateur)
 AGENTS = {}  # rempli par main.py
 
 
