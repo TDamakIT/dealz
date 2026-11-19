@@ -94,6 +94,11 @@ docker compose exec agents python -m dealz.tools.scenarios reset   # efface tout
 ```
 Le détail des scénarios et ce que tu dois voir : `docs/SCENARIOS.md`.
 
+### Après un `git pull`
+- Code des agents modifié (`agents/`) : il est copié dans l'image Docker, donc **`docker compose up -d --build agents`** (sinon l'ancien code continue de tourner).
+- Thème (`wp-theme/`) ou extension (`wp-plugin/`) modifiés : montés directement dans WordPress, un rechargement de la page suffit (Ctrl+F5).
+- Catalogue ou images (`data/`) modifiés : `docker compose exec -T agents python -m dealz.tools.import_catalog`.
+
 ### En cas de souci
 ```bash
 docker compose ps                    # tout doit être "running"
