@@ -1,0 +1,24 @@
+{
+  "_avertissement": "ESTIMATIONS À CONFIRMER avec un transitaire (code SH exact) avant toute commande. Les taux varient selon le code SH du produit. Mettre à jour le change chaque semaine.",
+  "usd_tnd": 3.0,
+  "fret_pct_fob": 12,
+  "assurance_pct": 0.5,
+  "redevance_douane_pct_droits": 3,
+  "fodec_pct": 1,
+  "tva_pct": 19,
+  "avance_impot_pct": 10,
+  "transitaire_tnd_par_envoi": 800,
+  "frais_vente_pct": 10,
+  "livraison_tnd_par_unite": 7,
+  "seuil_marge_bonne_pct": 35,
+  "seuil_marge_limite_pct": 20,
+  "categories": {
+    "papeterie":        {"droit_douane_pct": 20, "droit_conso_pct": 0, "autofinancement_bct": false, "controle_technique": false, "note": "cahiers, stylos, classeurs"},
+    "cartables":        {"droit_douane_pct": 20, "droit_conso_pct": 0, "autofinancement_bct": false, "controle_technique": false, "note": "sacs et cartables"},
+    "informatique":     {"droit_douane_pct": 0,  "droit_conso_pct": 0, "autofinancement_bct": false, "controle_technique": true,  "note": "accessoires : vérifier homologation"},
+    "petit_electro":    {"droit_douane_pct": 20, "droit_conso_pct": 0, "autofinancement_bct": true,  "controle_technique": true,  "note": "électroménager : liste BCT des produits non prioritaires (circulaire 2026-04), conformité électrique"},
+    "mobilier":         {"droit_douane_pct": 20, "droit_conso_pct": 0, "autofinancement_bct": false, "controle_technique": false, "note": "volumineux : le fret pèse lourd, demander un devis au m3"},
+    "jouets_deco":      {"droit_douane_pct": 20, "droit_conso_pct": 0, "autofinancement_bct": true,  "controle_technique": true,  "note": "jouets, déco, gadgets : liste BCT ; normes de sécurité jouets"},
+    "autre":            {"droit_douane_pct": 20, "droit_conso_pct": 0, "autofinancement_bct": false, "controle_technique": false, "note": "taux par défaut, à vérifier"}
+  }
+}

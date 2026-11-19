@@ -1,0 +1,8 @@
+{
+  "_note": "Pages catégories publiques de boutiques PrestaShop. Vérifier avec : docker compose exec agents python -m dealz.tools.check_sources",
+  "sources": [
+    {"site": "Tunisianet", "categorie": "petit_electro", "nom": "Petit électro cuisine", "url": "https://www.tunisianet.com.tn/522-petit-electromenager-tunisie-cuisine"},
+    {"site": "Tunisianet", "categorie": "informatique",  "nom": "PC portables",          "url": "https://www.tunisianet.com.tn/301-pc-portable-tunisie"},
+    {"site": "Spacenet",   "categorie": "petit_electro", "nom": "Petit électro cuisine", "url": "https://spacenet.tn/163-petit-electro-cuisine"}
+  ]
+}
