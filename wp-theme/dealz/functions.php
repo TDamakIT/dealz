@@ -175,3 +175,21 @@ add_action('storefront_footer', function () { ?>
     </div>
     <div class="dealz-footer-bas">© <?php echo esc_html(date('Y')); ?> Dealz · Site de démonstration : produits et prix fictifs.</div>
 <?php }, 20);
+
+/* ---------- Commande : adresse adaptée à la Tunisie ---------- */
+// Les 24 gouvernorats en liste déroulante (WooCommerce n'en propose pas pour la Tunisie).
+add_filter('woocommerce_states', function ($states) {
+    $states['TN'] = [
+        'ARI' => 'Ariana', 'BEJ' => 'Béja', 'BEN' => 'Ben Arous', 'BIZ' => 'Bizerte', 'GAB' => 'Gabès', 'GAF' => 'Gafsa',
+        'JEN' => 'Jendouba', 'KAI' => 'Kairouan', 'KAS' => 'Kasserine', 'KEB' => 'Kébili', 'KEF' => 'Le Kef', 'MAH' => 'Mahdia',
+        'MAN' => 'La Manouba', 'MED' => 'Médenine', 'MON' => 'Monastir', 'NAB' => 'Nabeul', 'SFA' => 'Sfax', 'SBZ' => 'Sidi Bouzid',
+        'SIL' => 'Siliana', 'SOU' => 'Sousse', 'TAT' => 'Tataouine', 'TOZ' => 'Tozeur', 'TUN' => 'Tunis', 'ZAG' => 'Zaghouan',
+    ];
+    return $states;
+});
+// Code postal facultatif (beaucoup de clients ne le connaissent pas) ; gouvernorat obligatoire, utile au livreur.
+add_filter('woocommerce_get_country_locale', function ($locale) {
+    $locale['TN']['postcode'] = ['required' => false, 'label' => 'Code postal'];
+    $locale['TN']['state'] = ['required' => true, 'label' => 'Gouvernorat'];
+    return $locale;
+});
