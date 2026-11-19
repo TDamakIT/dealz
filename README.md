@@ -34,7 +34,7 @@ Si tu ouvres la boutique depuis Windows et pas depuis la VM, mets dans `WP_PUBLI
 docker compose up -d
 ./scripts/setup_wordpress.sh
 ```
-Le script installe WordPress en français, WooCommerce, le thème Storefront et le **thème Dealz** (couleurs et polices de la marque, page d'accueil, menu, pages en français), l'extension Dealz, Rank Math (SEO), règle la boutique, crée la page liste scolaire, crée l'accès des agents et importe le catalogue avec les photos de démo. Dans la boutique, seul le produit principal de chaque famille apparaît ; ses modèles (fille, garçon, petit prix, haut de gamme…) sont sur sa fiche, dans le bloc « Choisis ton modèle ».
+Le script installe WordPress en français, WooCommerce, le thème Storefront et le **thème Dealz** (couleurs et polices de la marque, page d'accueil, menu, pages en français), l'extension Dealz, Rank Math (SEO), règle la boutique, crée la page liste scolaire, crée l'accès des agents et importe le catalogue avec les images de démo (une image par modèle : 612 images, environ 1 minute). Dans la boutique, seul le produit principal de chaque famille apparaît ; ses modèles (fille, garçon, petit prix, haut de gamme…) sont sur sa fiche, dans le bloc « Choisis ton modèle ».
 Pour ne réappliquer que le thème, les pages et le menu : `WP="docker compose run --rm -T wpcli wp" ./scripts/setup_theme.sh`
 À la fin : boutique sur `http://localhost:8080`, administration sur `/wp-admin`.
 
@@ -136,4 +136,5 @@ wp-theme/dealz/           thème Dealz (thème enfant de Storefront) : en-tête,
 agents/dealz/             service Python : agents, planning, bot Telegram, API, tableau de bord
 agents/tests/             tests hors ligne (boutique et Telegram simulés)
 docs/                     plan de dev, agents et coûts, questions ouvertes
+data/photos/              images FICTIVES des produits (une par modèle) + index.json ; régénérer : python3 data/photos/gen_photos.py
 ```

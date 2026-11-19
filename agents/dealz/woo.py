@@ -51,6 +51,21 @@ class Woo:
             raise RuntimeError(f"WordPress POST media → {r.status_code} : {r.text[:300]}")
         return r.json()
 
+    def media_slugs(self, prefix):
+        """{slug: id} de toutes les images dont le slug commence par prefix (une seule série d'appels)."""
+        root = self.base.rsplit("/wc/v3", 1)[0]
+        out, page = {}, 1
+        while True:
+            r = self.http.get(f"{root}/wp/v2/media", params={"search": prefix, "per_page": 100, "page": page, "_fields": "id,slug"})
+            if r.status_code != 200:
+                break
+            batch = r.json()
+            out.update({m["slug"]: m["id"] for m in batch if m["slug"].startswith(prefix)})
+            if len(batch) < 100:
+                break
+            page += 1
+        return out
+
     def find_media(self, search):
         root = self.base.rsplit("/wc/v3", 1)[0]
         r = self.http.get(f"{root}/wp/v2/media", params={"search": search, "per_page": 20})

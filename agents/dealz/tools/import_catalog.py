@@ -62,37 +62,26 @@ def ensure_categories(woo: Woo, cat: dict) -> dict:
     return ids
 
 
-PHOTOS_DIR = Path(os.getenv("PHOTOS_DIR", "/app/data/photos-demo"))
+PHOTOS_DIR = Path(os.getenv("PHOTOS_DIR", "/app/data/photos"))
 
 
 def ensure_photos(woo: Woo) -> dict:
-    """Envoie une fois les photos de démo dans la médiathèque. Renvoie {nom: id_media}."""
-    ids = {}
-    if not PHOTOS_DIR.exists():
-        print("Photos de démo : dossier absent, produits sans photo")
-        return ids
-    for f in sorted(PHOTOS_DIR.glob("*.png")):
-        nom = f"dealz-demo-{f.stem}"
-        found = [m for m in woo.find_media(nom) if m.get("slug", "").startswith(nom)]
-        ids[f.stem] = found[0]["id"] if found else woo.upload_media(f, f"{nom}.png")["id"]
-    print(f"Photos de démo : {len(ids)}")
-    return ids
-
-
-def photo_for(p):
-    """Photo de démo selon le type d'article (seulement pour les familles qu'on a photographiées)."""
-    n, g, gm = p["nom"].lower(), p.get("genre", "mixte"), p.get("gamme", "standard")
-    if "cartable" in n or "sac à dos" in n:
-        if g in ("fille", "garcon"):
-            return f"cartable-{g}"
-        return {"eco": "cartable-eco", "premium": "cartable-premium"}.get(gm, "cartable-mixte")
-    if "trousse" in n or "plumier" in n:
-        return "trousse-fille" if g == "fille" else "trousse-garcon"
-    if "stylo" in n:
-        return f"stylo-{gm}"
-    if "cahier" in n and "textes" not in n and "protège" not in n:
-        return f"cahier-{gm}"
-    return None
+    """Envoie une fois les images de démo (une par modèle) dans la médiathèque. Renvoie {sku: id_media}."""
+    index_path = PHOTOS_DIR / "index.json"
+    if not index_path.exists():
+        print("Images de démo : index absent, produits sans image")
+        return {}
+    index = json.loads(index_path.read_text(encoding="utf-8"))
+    deja = woo.media_slugs("dealz-p-")
+    ids, envoyees = {}, 0
+    for fichier in sorted(set(index.values())):
+        slug = "dealz-p-" + fichier.rsplit(".", 1)[0].lower()
+        if slug not in deja:
+            deja[slug] = woo.upload_media(PHOTOS_DIR / "img" / fichier, f"{slug}.jpg", "image/jpeg")["id"]
+            envoyees += 1
+        ids[fichier] = deja[slug]
+    print(f"Images de démo : {len(ids)} ({envoyees} envoyées, {len(ids) - envoyees} déjà là)")
+    return {sku: ids[f] for sku, f in index.items() if f in ids}
 
 
 def product_payload(p, cat_ids, photos=None):
@@ -111,9 +100,8 @@ def product_payload(p, cat_ids, photos=None):
                "catalog_visibility": "visible" if p.get("famille", p["id"]) == p["id"] else "hidden",
                "short_description": f"<p dir='rtl'>{p['nom_ar']}</p><p><em>Produit et prix fictifs (démo).</em></p>",
                "categories": [{"id": cat_ids[p["categorie"]]}], "meta_data": meta}
-    key = photo_for(p)
-    if photos and key in photos:
-        payload["images"] = [{"id": photos[key]}]
+    if photos and p["id"] in photos:
+        payload["images"] = [{"id": photos[p["id"]]}]
     return payload
 
 

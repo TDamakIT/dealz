@@ -88,10 +88,11 @@
     if (cur && l.options.length > 1) {
       act = el('div', { class: 'dz-actions' });
       const dispo = GAMMES.filter(([g]) => l.options.some((o) => o.gamme === g));
-      if (dispo.length > 1) dispo.forEach(([g, t]) => act.append(el('button', { type: 'button', 'data-act': 'gamme', 'data-g': g, 'data-e': ei, 'data-l': li, 'aria-pressed': String(l.open && l.filtre === g) }, t)));
-      const n = l.options.length;
-      act.append(el('button', { type: 'button', class: 'dz-voir', 'data-act': 'voir', 'data-e': ei, 'data-l': li, 'aria-expanded': String(!!l.open) },
-        l.open ? 'Fermer' : `Voir les ${n} modèles`));
+      // « Tout » : tous les modèles du genre choisi, toutes gammes confondues
+      act.append(el('button', { type: 'button', 'data-act': 'tout', 'data-e': ei, 'data-l': li, 'aria-pressed': String(!!l.open && !l.filtre) }, `Tout (${l.options.length})`));
+      if (dispo.length > 1) dispo.forEach(([g, t]) => act.append(el('button', { type: 'button', 'data-act': 'gamme', 'data-g': g, 'data-e': ei, 'data-l': li, 'aria-pressed': String(!!l.open && l.filtre === g) },
+        `${t} (${l.options.filter((o) => o.gamme === g).length})`)));
+      if (l.open) act.append(el('button', { type: 'button', class: 'dz-voir', 'data-act': 'fermer', 'data-e': ei, 'data-l': li }, 'Fermer'));
     }
     row.append(info);
     if (cur) {
@@ -151,8 +152,10 @@
         l.open = true; l.filtre = g;
         if (selected(l).gamme !== g) { const first = l.options.find((o) => o.gamme === g); if (first) l.product_id = first.product_id; }
       }
-    } else if (act === 'voir') {
-      l.open = !l.open; l.filtre = l.open ? null : l.filtre;
+    } else if (act === 'tout') {
+      if (l.open && !l.filtre) { l.open = false; } else { l.open = true; l.filtre = null; }
+    } else if (act === 'fermer') {
+      l.open = false;
     } else if (act === 'pick') {
       l.product_id = parseInt(t.getAttribute('data-p'), 10);
     } else if (act === 'moins') {
