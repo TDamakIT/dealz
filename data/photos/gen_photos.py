@@ -33,7 +33,7 @@ def sh(h, f):
 
 
 # ---------------------------------------------------------------- analyse du modèle
-def analyse(p):
+def analyse(p, eviter=()):
     """→ dict(type, taille, couleur, motif, gamme, desc) à partir du nom et des champs du catalogue."""
     base = p["nom"].split(" — ")[0].lower()
     parts = [x.strip() for x in p["nom"].split(" — ")[1:]]
@@ -53,8 +53,9 @@ def analyse(p):
         couleur = d
     elif d in DESC_COL:
         couleur = DESC_COL[d]
-    if not couleur:   # produit de base : une couleur stable tirée du nom
-        couleur = ["bleu", "rouge", "vert", "turquoise", "violet", "orange"][int(hashlib.md5(base.encode()).hexdigest(), 16) % 6]
+    if not couleur:   # produit de base : une couleur que ses modèles n'utilisent pas déjà
+        libres = [c for c in ("vert", "jaune", "violet", "orange", "turquoise", "rose", "bleu", "rouge") if c not in eviter]
+        couleur = (libres or ["vert"])[int(hashlib.md5(base.encode()).hexdigest(), 16) % max(1, min(3, len(libres)))]
     t = type_of(base)
     return {"type": t, "base": base, "couleur": couleur, "motif": motif, "gamme": gamme, "desc": d}
 
@@ -83,7 +84,7 @@ def type_of(b):
 
 
 def key_of(a):
-    raw = f"{a['type']}|{a['base'] if a['type'] in ('regle', 'stylo', 'boite_crayons', 'boite_feutres') else ''}|{a['couleur']}|{a['motif']}|{a['gamme']}|{a['desc']}"
+    raw = f"v3|{a['type']}|{a['base'] if a['type'] in ('regle', 'stylo', 'boite_crayons', 'boite_feutres') else ''}|{a['couleur']}|{a['motif']}|{a['gamme']}|{a['desc']}"
     return f"{a['type']}-{hashlib.md5(raw.encode()).hexdigest()[:8]}"
 
 
@@ -192,7 +193,7 @@ def book(a, kind="cahier"):
         c = sh(c, -.35)
     landscape = kind == "dessin"
     x, y, w, h = (70, 110, 260, 200) if landscape else (104, 70, 192, 270)
-    body = f'<rect x="{x + 8}" y="{y + 6}" width="{w}" height="{h}" rx="8" fill="#e6e6e6"/><rect x="{x}" y="{y}" width="{w}" height="{h}" rx="8" fill="{sh(c, .55) if eco else "url(#b)"}"/>'
+    body = f'<rect x="{x + 8}" y="{y + 6}" width="{w}" height="{h}" rx="8" fill="#e6e6e6"/><rect x="{x}" y="{y}" width="{w}" height="{h}" rx="8" fill="{c if eco else "url(#b)"}"/>'
     if kind == "spirale":
         body += "".join(f'<rect x="{x - 10}" y="{y + 16 + i * 22}" width="22" height="8" rx="4" fill="#9aa3b5"/>' for i in range(11))
     else:
@@ -403,10 +404,14 @@ async def main():
     cat = json.loads(CATALOG.read_text(encoding="utf-8"))
     OUT.mkdir(parents=True, exist_ok=True)
     index, todo = {}, {}
-    for p in cat["produits"]:
-        if p["rubrique"] != "papeterie":
-            continue
-        a = analyse(p)
+    papeterie = [p for p in cat["produits"] if p["rubrique"] == "papeterie"]
+    couleurs_famille = {}
+    for p in papeterie:
+        if p["id"] != p.get("famille", p["id"]):
+            c = analyse(p)["couleur"]
+            couleurs_famille.setdefault(p["famille"], set()).update({c, {"bleue": "bleu", "verte": "vert", "violette": "violet"}.get(c, c)})
+    for p in papeterie:
+        a = analyse(p, couleurs_famille.get(p["id"], ()) if p["id"] == p.get("famille", p["id"]) else ())
         k = key_of(a)
         index[p["id"]] = f"{k}.jpg"
         todo.setdefault(k, a)
