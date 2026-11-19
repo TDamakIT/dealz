@@ -59,8 +59,8 @@ def test_page_commandes_et_actions(woo):
     assert any(m == "POST" and p == "orders/2/notes" for m, p, _ in woo.calls)
 
 
-def test_commandes_sans_boutique():
-    base.set_woo(None)
+def test_commandes_sans_boutique(monkeypatch):
+    monkeypatch.setattr(suivi, "get_woo", lambda: None)   # même si .env configure une boutique
     r = TestClient(web.app).get("/commandes")
     assert r.status_code == 200 and "pas connectée" in r.text
 
@@ -76,8 +76,8 @@ def test_marges(woo):
     assert r.status_code == 200 and "Cartables" in r.text
 
 
-def test_marges_catalogue_local():
-    base.set_woo(None)
+def test_marges_catalogue_local(monkeypatch):
+    monkeypatch.setattr(suivi, "get_woo", lambda: None)
     suivi.clear_cache()
     m = suivi.marges()
     assert m["source"] == "catalogue" and len(m["produits"]) > 500 and m["moyenne_pct"]
