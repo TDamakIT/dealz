@@ -56,7 +56,7 @@ class Woo:
         root = self.base.rsplit("/wc/v3", 1)[0]
         out, page = {}, 1
         while True:
-            r = self.http.get(f"{root}/wp/v2/media", params={"search": prefix, "per_page": 100, "page": page, "_fields": "id,slug"})
+            r = self.http.get(f"{root}/wp/v2/media", params={"search": prefix, "per_page": 100, "page": page, "orderby": "id", "order": "asc", "_fields": "id,slug"})
             if r.status_code != 200:
                 break
             batch = r.json()
